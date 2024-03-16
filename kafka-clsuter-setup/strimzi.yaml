@@ -1,0 +1,114 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: my-cluster
+spec:
+  kafka:
+    version: 3.6.1
+    replicas: 3
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: false
+      - name: external
+        port: 9094
+        type: loadbalancer
+        tls: true
+        authentication:
+          type: scram-sha-512    
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 1.8
+      limits:
+        memory: 2Gi
+        cpu: 2
+    template:
+      pod:
+        # metadata:
+        #   annotations:
+        #     ad.datadoghq.com/kafka-connect.check_names: '["jmx"]'
+        #     ad.datadoghq.com/kafka.init_configs: '[{"is_jmx": true, "collect_default_metrics": true}]'
+        #     ad.datadoghq.com/kafka.instances: '[{"host": "","port":""}]'
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: lke.linode.com/pool-id
+                      operator: In
+                      values:
+                        - "233625"  # Specify your node pool label value here
+        tolerations:
+          - key: "kubernetes.azure.com/scalesetpriority"
+            operator: "Equal"
+            value: "spot"
+            effect: "NoSchedule"
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+
+    storage:
+      type: jbod
+      volumes:
+        - id: 0
+          type: persistent-claim
+          size: 20Gi
+          deleteClaim: true
+          class: linode-block-storage-retain 
+    #   type: jmxPrometheusExporter
+    #   valueFrom:
+    #     configMapKeyRef:
+    #       name: kafka-metrics
+    #       key: kafka-metrics-config.yml
+  zookeeper:
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 20Gi 
+      class: linode-block-storage-retain 
+      deleteClaim: true
+      # storageClass: linode-block-storage 
+      # Adjust the size according to your requirements
+    # metricsConfig:
+    #   type: jmxPrometheusExporter
+    #   valueFrom:
+    #     configMapKeyRef:
+    #       name: kafka-metrics
+    #       key: zookeeper-metrics-config.yml
+    # # template:
+    #   pod:
+    #     metadata:
+    #       annotations:
+    #         ad.datadoghq.com/zookeeper.check_names: '["openmetrics"]'
+    #         ad.datadoghq.com/zookeeper.init_configs: '[{}]'
+    #         ad.datadoghq.com/zookeeper.instances: |
+    #           [
+    #             {
+    #               "prometheus_url": "http://%%host%%:9404/metrics",
+    #               "namespace": "zookeeper",
+    #               "metrics": [
+    #                 "zookeeper_leader",
+    #                 "process_open_fds",
+    #                 "process_max_fds",
+    #                 "zookeeper_tick",
+    #                 "zookeeper_quorumsize",
+    #                 "zookeeper_avgrequestlatency"
+    #               ]
+    #             }
+    #           ]
+    #         ad.datadoghq.com/zookeeper.logs: '[{"source":"zookeeper","service":"zookeeper"}]'
+  # kafkaExporter:
+  #   topicRegex: ".*"
+  #   groupRegex: ".*"
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui-service
+spec:
+  selector:
+    app: kafka-ui
+  ports:
+    - protocol: TCP
+      port: 8080  # Assuming your Kafka UI listens on port 80 within the container
+  type: LoadBalancer  # Expose the service outside the Kubernetes cluster
+
